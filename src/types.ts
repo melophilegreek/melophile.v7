@@ -26,18 +26,6 @@ export interface Song {
    *  folders actually covered by the reselected batch — never assumed for
    *  songs whose folder isn't part of what was just rescanned. */
   importFolder?: string;
-  /** Feature (Edit tags -> Reset): the title/artist/album exactly as parsed
-   *  from the file at import time (or the same fallback scanner.ts used if
-   *  parsing found nothing -- filename for title, 'Unknown Artist' for
-   *  artist). Set once at import and never modified afterwards, so "Reset"
-   *  in the Edit Tags modal has a true original to restore to even after
-   *  the editable title/artist/album fields have been changed and saved
-   *  one or more times. Undefined for songs imported before this field
-   *  existed -- Reset falls back to the current value in that case, same
-   *  as before. */
-  originalTitle?: string;
-  originalArtist?: string;
-  originalAlbum?: string;
   /** Feature (Edit tags): manually-editable metadata beyond title/artist/
    *  album, set via the "Edit tags" track-menu action. Not extracted from
    *  the file at import time (no parser support for these yet) -- purely

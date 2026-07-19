@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, RotateCcw } from 'lucide-react';
+import { X, RotateCcw, Loader2 } from 'lucide-react';
 import type { Song } from '../types';
-import { updateSongTags } from '../lib/db';
+import { updateSongTags, getFile } from '../lib/db';
+import { extractMeta } from '../lib/metadataParser';
 
 interface Props {
   song: Song;
@@ -10,19 +11,33 @@ interface Props {
   onUpdated: (updated: Song) => void;
 }
 
-// "Default" here means the file's true original tag data, captured once at
-// import time (see Song.originalTitle/Artist/Album) -- NOT just "whatever
-// is currently saved". If Reset used the current value, it would stop
-// doing anything useful the moment an edit had been saved once, since the
-// edited value would then be "current" too. Falls back to the current
-// value for songs imported before original* existed. Album/genre/track/
-// year beyond that have no such fallback since they're either optional or
-// never parsed, so "default" for those is just empty/unset.
-function defaultTags(song: Song) {
+// "Default" here means the file's true original tag data -- read fresh off
+// the actual stored audio file (via extractMeta, the same parser import
+// uses), NOT "whatever is currently saved". Editing tags in this modal only
+// ever touches the DB record, never the file bytes, so the file's real
+// title/artist/album are always still there to re-read, no matter how many
+// times the DB record has been edited/saved since import. Falls back the
+// same way scanner.ts does at import time if a field truly isn't in the
+// file's tags. Album/genre/track/year beyond that have no such fallback
+// since they're either optional or never parsed, so "default" for those is
+// just empty/unset.
+async function readOriginalTags(song: Song) {
+  const blob = await getFile(song.fileKey);
+  const fallback = {
+    title: song.fileName.replace(/\.[^/.]+$/, ''),
+    artist: 'Unknown Artist',
+    album: '',
+    genre: '',
+    trackNumber: '',
+    year: '',
+  };
+  if (!blob) return fallback; // file missing from storage -- best-effort fallback
+  const file = new File([blob], song.fileName);
+  const meta = await extractMeta(file);
   return {
-    title: song.originalTitle ?? song.title,
-    artist: song.originalArtist ?? song.artist,
-    album: song.originalAlbum ?? song.album ?? '',
+    title: meta.title || fallback.title,
+    artist: meta.artist || fallback.artist,
+    album: meta.album || '',
     genre: '',
     trackNumber: '',
     year: '',
@@ -44,6 +59,7 @@ export function EditTagsModal({ song, accentColor, onClose, onUpdated }: Props) 
   const [trackNumber, setTrackNumber] = useState(song.trackNumber != null ? String(song.trackNumber) : '');
   const [year, setYear] = useState(song.year != null ? String(song.year) : '');
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -54,10 +70,16 @@ export function EditTagsModal({ song, accentColor, onClose, onUpdated }: Props) 
 
   const canSave = title.trim().length > 0 && artist.trim().length > 0 && !saving;
 
-  const handleReset = () => {
-    const d = defaultTags(song);
-    setTitle(d.title); setArtist(d.artist); setAlbum(d.album);
-    setGenre(d.genre); setTrackNumber(d.trackNumber); setYear(d.year);
+  const handleReset = async () => {
+    if (resetting) return;
+    setResetting(true);
+    try {
+      const d = await readOriginalTags(song);
+      setTitle(d.title); setArtist(d.artist); setAlbum(d.album);
+      setGenre(d.genre); setTrackNumber(d.trackNumber); setYear(d.year);
+    } finally {
+      setResetting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -127,9 +149,10 @@ export function EditTagsModal({ song, accentColor, onClose, onUpdated }: Props) 
           </div>
         </div>
 
-        <button onClick={handleReset}
-          className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mt-4 transition-colors">
-          <RotateCcw size={12} /> Reset
+        <button onClick={handleReset} disabled={resetting}
+          className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mt-4 transition-colors disabled:opacity-50">
+          {resetting ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+          {resetting ? 'Reading original tags…' : 'Reset'}
         </button>
 
         <div className="flex gap-2 mt-3">

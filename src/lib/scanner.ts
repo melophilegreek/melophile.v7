@@ -207,10 +207,6 @@ export async function importFiles(
         playCount: 0, lastPlayedAt: 0,
         lyrics, lyricsFormat,
         importFolder: folderOf(file),
-        // Feature (Edit tags -> Reset): snapshot the as-imported values so
-        // Reset always has the true original to restore to, independent of
-        // any later edits/saves.
-        originalTitle: title, originalArtist: artist, originalAlbum: meta.album,
       };
       pendingBatch.push({ song, file });
       added++;
