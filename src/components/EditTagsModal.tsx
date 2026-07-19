@@ -10,16 +10,19 @@ interface Props {
   onUpdated: (updated: Song) => void;
 }
 
-// Mirrors the fallback logic scanner.ts uses when a file has no readable
-// tag for a field at import time -- title falls back to the filename
-// (extension stripped), artist to 'Unknown Artist'. Album/genre/track/year
-// have no such fallback since they're either optional or never parsed, so
-// "default" for those is just empty/unset.
+// "Default" here means "as the library currently has it, minus the
+// never-parsed extras" -- NOT the filename/'Unknown Artist' import-time
+// fallback. That fallback only applies to songs with literally no tag data
+// at import; reusing it here would clobber real, correctly-parsed
+// title/artist/album with a worse guess. So Reset reverts title/artist/
+// album to the song's stored values (undoing in-progress edits to them)
+// and clears genre/track/year to blank, since those are always
+// user-entered and have no "default" besides empty.
 function defaultTags(song: Song) {
   return {
-    title: song.fileName.replace(/\.[^/.]+$/, ''),
-    artist: 'Unknown Artist',
-    album: '',
+    title: song.title,
+    artist: song.artist,
+    album: song.album ?? '',
     genre: '',
     trackNumber: '',
     year: '',
@@ -126,7 +129,7 @@ export function EditTagsModal({ song, accentColor, onClose, onUpdated }: Props) 
 
         <button onClick={handleReset}
           className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs mt-4 transition-colors">
-          <RotateCcw size={12} /> Reset to default
+          <RotateCcw size={12} /> Reset
         </button>
 
         <div className="flex gap-2 mt-3">
