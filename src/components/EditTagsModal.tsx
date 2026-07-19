@@ -10,19 +10,19 @@ interface Props {
   onUpdated: (updated: Song) => void;
 }
 
-// "Default" here means "as the library currently has it, minus the
-// never-parsed extras" -- NOT the filename/'Unknown Artist' import-time
-// fallback. That fallback only applies to songs with literally no tag data
-// at import; reusing it here would clobber real, correctly-parsed
-// title/artist/album with a worse guess. So Reset reverts title/artist/
-// album to the song's stored values (undoing in-progress edits to them)
-// and clears genre/track/year to blank, since those are always
-// user-entered and have no "default" besides empty.
+// "Default" here means the file's true original tag data, captured once at
+// import time (see Song.originalTitle/Artist/Album) -- NOT just "whatever
+// is currently saved". If Reset used the current value, it would stop
+// doing anything useful the moment an edit had been saved once, since the
+// edited value would then be "current" too. Falls back to the current
+// value for songs imported before original* existed. Album/genre/track/
+// year beyond that have no such fallback since they're either optional or
+// never parsed, so "default" for those is just empty/unset.
 function defaultTags(song: Song) {
   return {
-    title: song.title,
-    artist: song.artist,
-    album: song.album ?? '',
+    title: song.originalTitle ?? song.title,
+    artist: song.originalArtist ?? song.artist,
+    album: song.originalAlbum ?? song.album ?? '',
     genre: '',
     trackNumber: '',
     year: '',
